@@ -99,16 +99,13 @@
           (= kind QUEEN)
             (moves-in-dirs board pos color ALL-DIRS 8)
           (= kind PAWN)
-            (concat
-              ; forward moves
-              (let [moves [[-1 0] [-2 0]]
-                    check1 (fn [new-pos] (and (pos-valid? board new-pos)
-                                          (pos-empty? board new-pos)))
-                    check2 (fn [new-pos] (and (check1 new-pos) (= (pos 0) 6)))]
-                (for [[move check] (zip moves [check1 check2]) 
-                      :let [new-pos (add-pair pos move)]
-                      :while (check new-pos)]
-                     new-pos)))
+            (let [pos1 (add-pair pos [-1 0])
+                  pos2 (add-pair pos [-2 0])
+                  check (fn [new-pos] (and (pos-valid? board new-pos)
+                                           (pos-empty? board new-pos)))
+                  ok1 (check pos1)
+                  ok2 (and ok1 (= (pos 0) 6) (check pos2))]
+              (remove nil? [(when ok1 pos1) (when ok2 pos2)]))
             )))
 
 
@@ -159,4 +156,5 @@
   (show-moves [2 4])
   (show-moves [3 5])
   (show-moves [6 7])
+  (show-moves [3 1])
   )
