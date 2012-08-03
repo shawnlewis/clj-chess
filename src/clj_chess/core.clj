@@ -64,6 +64,7 @@
 
 (defn pos-empty? [board pos] (= (piece-at board pos) EMPTY))
 (defn pos-valid? [board pos] (not= (piece-at board pos) INVALID))
+(defn pos-enemy? [board color pos] (not= color (color-of (piece-at board pos))))
 
 ; returns color in mate, or nil
 (defn is-mate [board] nil)
@@ -99,14 +100,21 @@
           (= kind QUEEN)
             (moves-in-dirs board pos color ALL-DIRS 8)
           (= kind PAWN)
-            (let [pos1 (add-pair pos [-1 0])
-                  pos2 (add-pair pos [-2 0])
-                  check (fn [new-pos] (and (pos-valid? board new-pos)
-                                           (pos-empty? board new-pos)))
-                  ok1 (check pos1)
-                  ok2 (and ok1 (= (pos 0) 6) (check pos2))]
-              (remove nil? [(when ok1 pos1) (when ok2 pos2)]))
-            )))
+            (concat
+              ; forward moves
+              (let [pos1 (add-pair pos [-1 0])
+                    pos2 (add-pair pos [-2 0])
+                    check (fn [new-pos] (and (pos-valid? board new-pos)
+                                             (pos-empty? board new-pos)))
+                    ok1 (check pos1)
+                    ok2 (and ok1 (= (pos 0) 6) (check pos2))]
+                (remove nil? [(when ok1 pos1) (when ok2 pos2)]))
+              ; diagonal moves
+              (let [poses (map #(add-pair pos %) [[-1 -1] [-1 1]])]
+                (filter #(and (pos-valid? board %)
+                              (pos-enemy? board color %))
+                        poses))
+              ))))
 
 
 ;; pawn
@@ -135,7 +143,7 @@
         " p bq   "
         " Pp  P  "
         "  N     "
-        " K      "
+        " K    p "
         "       P"
         "    R   "]))
 
