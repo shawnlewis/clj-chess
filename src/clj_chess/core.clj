@@ -6,6 +6,13 @@
 
 (defn is-upper [char] (= (string/upper-case char) char))
 
+(defn add-pair [p0 p1]
+  [(+ (p0 0) (p1 0))
+   (+ (p0 1) (p1 1))])
+
+
+;;; chess
+
 (def WHITE)
 (def BLACK)
 (def ROOK \r)
@@ -34,8 +41,11 @@
 
 (defn print-board [board] (println (to-picture board)))
 
-(defn board-with-moves [board moves]
-  (reduce (partial with-piece \x) board moves))
+(defn with-piece [piece board pos]
+  (assoc-in board pos piece))
+
+(defn piece-at [board pos]
+  (get-in board pos INVALID))
 
 (def initial-board
      (to-board 
@@ -48,20 +58,14 @@
         "PPPPPPPP"
         "RNBQKBNR"]))
 
-(defn with-piece [piece board pos]
-  (assoc-in board pos piece))
-
-(defn piece-at [board pos]
-  (get-in board pos))
 
 (defn is-empty [board pos] (= (piece-at board pos) EMPTY))
 
 ; returns color in mate, or nil
 (defn is-mate [board] nil)
 
-(defn add-pair [p0 p1]
-  [(+ (p0 0) (p1 0))
-   (+ (p0 1) (p1 1))])
+(defn board-with-moves [board moves]
+  (reduce (partial with-piece \x) board moves))
 
 (defn moves-in-dirs [board pos color dirs dist]
   (apply concat
@@ -72,7 +76,7 @@
                           new-moves (conj moves cur-pos)] 
                       (cond (= piece-there INVALID)
                             moves
-                            (not= piece-there BLANK)
+                            (not= piece-there EMPTY)
                             (if (= color (color-of piece-there))
                               moves
                               new-moves)
