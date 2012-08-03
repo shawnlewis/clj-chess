@@ -10,6 +10,9 @@
   [(+ (p0 0) (p1 0))
    (+ (p0 1) (p1 1))])
 
+(defn zip [& args]
+  (apply map vector args))
+
 
 ;;; chess
 
@@ -59,7 +62,8 @@
         "RNBQKBNR"]))
 
 
-(defn is-empty [board pos] (= (piece-at board pos) EMPTY))
+(defn pos-empty? [board pos] (= (piece-at board pos) EMPTY))
+(defn pos-valid? [board pos] (not= (piece-at board pos) INVALID))
 
 ; returns color in mate, or nil
 (defn is-mate [board] nil)
@@ -93,7 +97,25 @@
           (= kind BISHOP)
             (moves-in-dirs board pos color DIAGONAL-DIRS 8)
           (= kind QUEEN)
-            (moves-in-dirs board pos color ALL-DIRS 8))))
+            (moves-in-dirs board pos color ALL-DIRS 8)
+          (= kind PAWN)
+            (concat
+              ; forward moves
+              (let [moves [[-1 0] [-2 0]]
+                    check1 (fn [new-pos] (and (pos-valid? board new-pos)
+                                          (pos-empty? board new-pos)))
+                    check2 (fn [new-pos] (and (check1 new-pos) (= (pos 0) 6)))]
+                (for [[move check] (zip moves [check1 check2]) 
+                      :let [new-pos (add-pair pos move)]
+                      :while (check new-pos)]
+                     new-pos)))
+            )))
+
+
+;; pawn
+;; forward 1 if empty and valid
+;; forward 2 if rank forward 1 and empty and valid
+;; diagonal 1 if opposite color or en passant 
 
 ;; def pawn_moves():
 ;;   move = [-1 0]
@@ -117,7 +139,7 @@
         " Pp  P  "
         "  N     "
         " K      "
-        "        "
+        "       P"
         "    R   "]))
 
 (comment
@@ -134,4 +156,7 @@
                                    (valid-moves test1-board pos))))
   (show-moves [0 0])
   (show-moves [2 4])
+  (show-moves [2 4])
+  (show-moves [3 5])
+  (show-moves [6 7])
   )
