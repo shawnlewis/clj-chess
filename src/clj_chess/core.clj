@@ -140,7 +140,7 @@
      (to-board
        ["r  k    "
         "        "
-        " p bq   "
+        " ppbq   "
         " Pp  P  "
         "  N     "
         " K    p "
