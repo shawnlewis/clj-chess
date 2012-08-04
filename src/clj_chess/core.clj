@@ -1,6 +1,7 @@
 (ns clj-chess.core
     (:use clojure.repl)
-    (:require [clojure.string :as string]))
+    (:require [clojure.string :as string]
+              [clojure.set]))
 
 ;;; utilties
 
@@ -33,6 +34,8 @@
 (defn color-of [piece] (if (is-upper (str piece)) WHITE BLACK))
 (defn kind-of [piece]  (nth (string/lower-case piece) 0))
 
+(defn other-color [color] (if (= color WHITE) BLACK WHITE))
+
 ; convert a board (in some known format) to the representation used
 ; throughout the program.
 (defn to-board [board]
@@ -51,7 +54,7 @@
   (get-in board pos INVALID))
 
 (def initial-board
-     (to-board 
+     (to-board
        ["rnbqkbnr"
         "pppppppp"
         "        "
@@ -86,7 +89,19 @@
 (defn board-with-moves [board moves]
   (reduce (partial with-piece \x) board moves))
 
-(defn checked-poses [board color])
+(defn piece-poses [board]
+  (for [rank (range 8)
+        file (range 8)
+        :when (pos-piece? board [rank file])]
+       [rank file]))
+
+(defn color-poses [board color]
+  (filter #(= color (color-of (piece-at board %))) (piece-poses board)))
+
+; positions that color could capture, were there a piece of the other
+; color there.
+(defn poses-in-check [board color]
+  (set (apply concat (map #(valid-captures board %) (color-poses board color)))))
 
 (defn moves-in-dirs [board pos color dirs dist]
   (apply concat
@@ -94,14 +109,14 @@
               (loop [cur-pos (add-pair pos dir)
                      moves []]
                     (let [piece-there (piece-at board cur-pos)
-                          new-moves (conj moves cur-pos)] 
+                          new-moves (conj moves cur-pos)]
                       (cond (= piece-there INVALID)
                             moves
                             (not= piece-there EMPTY)
                             (if (= color (color-of piece-there))
                               moves
                               new-moves)
-                            :else 
+                            :else
                             (recur (add-pair cur-pos dir) new-moves)))))))
 
 (defn moves-direct [board pos color offsets]
@@ -110,7 +125,7 @@
           (map #(add-pair pos %) offsets)))
 
 ;; assumes board is oriented such that current player's home rank is 7
-(defn valid-moves [board pos]
+(defn valid-captures [board pos]
   (let [piece (piece-at board pos)
         color (color-of piece)
         kind (kind-of piece)]
@@ -121,30 +136,39 @@
           (= kind QUEEN)
             (moves-in-dirs board pos color ALL-DIRS 8)
           (= kind PAWN)
-            (concat
-              ; forward moves
-              (let [pos1 (add-pair pos [-1 0])
-                    pos2 (add-pair pos [-2 0])
-                    check (fn [new-pos] (and (pos-valid? board new-pos)
-                                             (pos-empty? board new-pos)))
-                    ok1 (check pos1)
-                    ok2 (and ok1 (= (pos 0) 6) (check pos2))]
-                (remove nil? [(when ok1 pos1) (when ok2 pos2)]))
               ; diagonal moves
               (let [poses (map #(add-pair pos %) [[-1 -1] [-1 1]])]
                 (filter #(and (pos-valid? board %)
                               (pos-enemy? board color %))
                         poses))
-              )
            (= kind KNIGHT)
-             (moves-direct board pos color  
+             (moves-direct board pos colorg
                            [[1 2] [2 1]
                             [-1 2] [2 -1]
                             [-1 -2] [-2 -1]
-                            [1 -2] [-2 1]]) 
+                            [1 -2] [-2 1]])
            (= kind KING)
-             (let [in-check (checked-poses board color)])
              (moves-direct board pos color ALL-DIRS))))
+
+(defn valid-moves [board pos]
+   (let [piece (piece-at board pos)
+         color (color-of piece)
+         kind (kind-of piece)
+         capture-moves (valid-captures board pos)]
+     (cond (= kind PAWN)
+             (concat capture-moves
+                     ; forward moves
+                     (let [pos1 (add-pair pos [-1 0])
+                           pos2 (add-pair pos [-2 0])
+                           check (fn [new-pos] (and (pos-valid? board new-pos)
+                                                    (pos-empty? board new-pos)))
+                           ok1 (check pos1)
+                           ok2 (and ok1 (= (pos 0) 6) (check pos2))]
+                       (remove nil? [(when ok1 pos1) (when ok2 pos2)])))
+           (= kind KING)
+             (clojure.set/difference (set capture-moves) (poses-in-check board (other-color color)))
+           :else
+             capture-moves)))
 
 (def test1-board
      (to-board
@@ -161,7 +185,7 @@
   (print-board
     (board-with-moves initial-board
                       (moves-in-dirs initial-board
-                                     [3 2] 
+                                     [3 2]
                                      BLACK
                                      [[0 1] [-1 0]]
                                      1)))
@@ -185,4 +209,7 @@
   ; kings
   (show-moves [0 3])
   (show-moves [5 1])
+
+  (print-board (board-with-moves test1-board
+                                 (poses-in-check test1-board WHITE)))
   )
