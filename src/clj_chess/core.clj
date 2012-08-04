@@ -132,7 +132,7 @@
                 (not (square-own? board color %)))
           (map #(add-pair square %) offsets)))
 
-; squareitions that color could capture, were there a val of the other
+; squares that color could capture, were there a val of the other
 ; color there.
 (defn squares-in-check [board color]
   (set (apply concat (map #(valid-captures board %) (color-squares board color)))))
