@@ -228,6 +228,18 @@
   (show-moves [0 3])
   (show-moves [5 1])
 
-  (print-board (board-with-moves test1-board
-                                 (poses-in-check test1-board WHITE)))
+
+  (let [exp-board (to-board ["r  k    "
+                             "        "
+                             " xxxx   "
+                             "xPp xP  "
+                             "xxN x   "
+                             "xKx x x "
+                             "xxxxx  P"
+                             "xxxxRxxx"])
+        checked-board  (board-with-moves
+                         test1-board
+                         (poses-in-check test1-board WHITE))]
+    (print-board checked-board)
+    (println (= exp-board checked-board)) )
   )
