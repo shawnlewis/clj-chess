@@ -26,7 +26,6 @@
 (def KING \k)
 (def PAWN \p)
 (def EMPTY \space)
-(def INVALID :INVALID)
 (def STRAIGHT-DIRS [[1 0] [-1 0] [0 1] [0 -1]])
 (def DIAGONAL-DIRS [[1 1] [1 -1] [-1 -1] [-1 1]])
 (def ALL-DIRS (concat STRAIGHT-DIRS DIAGONAL-DIRS))
@@ -51,7 +50,7 @@
   (assoc-in board pos piece))
 
 (defn piece-at [board pos]
-  (get-in board pos INVALID))
+  (get-in board pos))
 
 ;;; refactor: rename mark-poses
 (defn board-with-moves [board moves]
@@ -79,12 +78,13 @@
 ;;:
 ;;;    could do these as (val-empty? [val]) fns and then build
 ;;;    pos-empty? etc out of those.
+;;;
+
+(defn pos-valid? [board pos]
+  (piece-at board pos))
 
 (defn pos-empty? [board pos]
   (= (piece-at board pos) EMPTY))
-
-(defn pos-valid? [board pos]
-  (not= (piece-at board pos) INVALID))
 
 (defn pos-piece? [board pos]
   (#{ROOK KNIGHT BISHOP QUEEN KING PAWN}
@@ -119,7 +119,7 @@
                      moves []]
                     (let [piece-there (piece-at board cur-pos)
                           new-moves (conj moves cur-pos)]
-                      (cond (= piece-there INVALID)
+                      (cond (not piece-there)
                               moves
                             (not= piece-there EMPTY)
                             (if (= color (color-of piece-there))
@@ -156,7 +156,7 @@
                               (pos-enemy? board color %))
                         poses))
            (= kind KNIGHT)
-             (moves-direct board pos colorg
+             (moves-direct board pos color
                            [[1 2] [2 1]
                             [-1 2] [2 -1]
                             [-1 -2] [-2 -1]
@@ -185,6 +185,9 @@
            :else
              capture-moves)))
 
+
+;;; Tests
+
 (def test1-board
      (to-board
        ["r  k    "
@@ -196,6 +199,9 @@
         "       P"
         "    R   "]))
 
+(defn show-moves [pos]
+(print-board (board-with-moves test1-board
+                               (valid-moves test1-board pos))))
 (comment
   (print-board
     (board-with-moves initial-board
@@ -205,9 +211,6 @@
                                      [[0 1] [-1 0]]
                                      1)))
   (print-board test1-board)
-  (defn show-moves [pos]
-    (print-board (board-with-moves test1-board
-                                   (valid-moves test1-board pos))))
   (show-moves [0 0])
   (show-moves [2 4])
   (show-moves [2 4])
