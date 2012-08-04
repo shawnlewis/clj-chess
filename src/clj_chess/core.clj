@@ -46,13 +46,13 @@
 
 (defn print-board [board] (println (to-picture board)))
 
-(defn with-piece [piece board pos]
-  (assoc-in board pos piece))
+(defn with-piece [piece board square]
+  (assoc-in board square piece))
 
-(defn piece-at [board pos]
-  (get-in board pos))
+(defn piece-at [board square]
+  (get-in board square))
 
-;;; refactor: rename mark-poses
+;;; refactor: rename mark-squares
 (defn board-with-moves [board moves]
   (reduce (partial with-piece \x) board moves))
 
@@ -72,53 +72,53 @@
 ;;;    use nil for INVALID
 ;;;    terms
 ;;;      "board" (program representation of chess board)
-;;;      "pos" (square)
+;;;      "square" (square)
 ;;;      "value" (what's in a square)
 ;;;      "piece" non-empty value
 ;;:
 ;;;    could do these as (val-empty? [val]) fns and then build
-;;;    pos-empty? etc out of those.
+;;;    square-empty? etc out of those.
 ;;;
 
-(defn pos-valid? [board pos]
-  (piece-at board pos))
+(defn square-valid? [board square]
+  (piece-at board square))
 
-(defn pos-empty? [board pos]
-  (= (piece-at board pos) EMPTY))
+(defn square-empty? [board square]
+  (= (piece-at board square) EMPTY))
 
-(defn pos-piece? [board pos]
+(defn square-piece? [board square]
   (#{ROOK KNIGHT BISHOP QUEEN KING PAWN}
-   (kind-of (piece-at board pos))))
+   (kind-of (piece-at board square))))
 
-(defn pos-enemy? [board color pos]
-  (and (pos-piece? board pos)
-       (not= color (color-of (piece-at board pos)))))
+(defn square-enemy? [board color square]
+  (and (square-piece? board square)
+       (not= color (color-of (piece-at board square)))))
 
-(defn pos-own? [board color pos]
-  (and (pos-piece? board pos)
-       (not (pos-enemy? board color pos))))
+(defn square-own? [board color square]
+  (and (square-piece? board square)
+       (not (square-enemy? board color square))))
 
-(defn piece-poses [board]
+(defn piece-squares [board]
   (for [rank (range 8)
         file (range 8)
-        :when (pos-piece? board [rank file])]
+        :when (square-piece? board [rank file])]
        [rank file]))
 
-(defn color-poses [board color]
-  (filter #(= color (color-of (piece-at board %))) (piece-poses board)))
+(defn color-squares [board color]
+  (filter #(= color (color-of (piece-at board %))) (piece-squares board)))
 
 
 ;;; maybe return moves up to (but not including) next piece or up to dist.
-;;;       also return position of next space if it contains a piece, and
+;;;       also return squareition of next space if it contains a piece, and
 ;;;       let caller decide whether to include that in move set.
 ;;; or maybe just rename to linear-moves
-(defn moves-in-dirs [board pos color dirs]
+(defn moves-in-dirs [board square color dirs]
   (apply concat
          (for [dir dirs]
-              (loop [cur-pos (add-pair pos dir)
+              (loop [cur-square (add-pair square dir)
                      moves []]
-                    (let [piece-there (piece-at board cur-pos)
-                          new-moves (conj moves cur-pos)]
+                    (let [piece-there (piece-at board cur-square)
+                          new-moves (conj moves cur-square)]
                       (cond (not piece-there)
                               moves
                             (not= piece-there EMPTY)
@@ -126,62 +126,62 @@
                               moves
                               new-moves)
                             :else
-                              (recur (add-pair cur-pos dir) new-moves)))))))
+                              (recur (add-pair cur-square dir) new-moves)))))))
 
-(defn moves-direct [board pos color offsets]
-  (filter #(and (pos-valid? board %)
-                (not (pos-own? board color %)))
-          (map #(add-pair pos %) offsets)))
+(defn moves-direct [board square color offsets]
+  (filter #(and (square-valid? board %)
+                (not (square-own? board color %)))
+          (map #(add-pair square %) offsets)))
 
-; positions that color could capture, were there a piece of the other
+; squareitions that color could capture, were there a piece of the other
 ; color there.
-(defn poses-in-check [board color]
-  (set (apply concat (map #(valid-captures board %) (color-poses board color)))))
+(defn squares-in-check [board color]
+  (set (apply concat (map #(valid-captures board %) (color-squares board color)))))
 
 ;; assumes board is oriented such that current player's home rank is 7
-(defn valid-captures [board pos]
-  (let [piece (piece-at board pos)
+(defn valid-captures [board square]
+  (let [piece (piece-at board square)
         color (color-of piece)
         kind (kind-of piece)]
     (cond (= kind ROOK)
-            (moves-in-dirs board pos color STRAIGHT-DIRS)
+            (moves-in-dirs board square color STRAIGHT-DIRS)
           (= kind BISHOP)
-            (moves-in-dirs board pos color DIAGONAL-DIRS)
+            (moves-in-dirs board square color DIAGONAL-DIRS)
           (= kind QUEEN)
-            (moves-in-dirs board pos color ALL-DIRS)
+            (moves-in-dirs board square color ALL-DIRS)
           (= kind PAWN)
               ; diagonal moves
-              (let [poses (map #(add-pair pos %) [[-1 -1] [-1 1]])]
-                (filter #(and (pos-valid? board %)
-                              (pos-enemy? board color %))
-                        poses))
+              (let [squares (map #(add-pair square %) [[-1 -1] [-1 1]])]
+                (filter #(and (square-valid? board %)
+                              (square-enemy? board color %))
+                        squares))
            (= kind KNIGHT)
-             (moves-direct board pos color
+             (moves-direct board square color
                            [[1 2] [2 1]
                             [-1 2] [2 -1]
                             [-1 -2] [-2 -1]
                             [1 -2] [-2 1]])
            (= kind KING)
-             (moves-direct board pos color ALL-DIRS))))
+             (moves-direct board square color ALL-DIRS))))
 
-(defn valid-moves [board pos]
-   (let [piece (piece-at board pos)
+(defn valid-moves [board square]
+   (let [piece (piece-at board square)
          color (color-of piece)
          kind (kind-of piece)
-         capture-moves (valid-captures board pos)]
+         capture-moves (valid-captures board square)]
      (cond (= kind PAWN)
              (concat capture-moves
                      ; forward moves
-                     (let [pos1 (add-pair pos [-1 0])
-                           pos2 (add-pair pos [-2 0])
-                           check (fn [new-pos] (and (pos-valid? board new-pos)
-                                                    (pos-empty? board new-pos)))
-                           ok1 (check pos1)
-                           ok2 (and ok1 (= (pos 0) 6) (check pos2))]
-                       (remove nil? [(when ok1 pos1) (when ok2 pos2)])))
+                     (let [square1 (add-pair square [-1 0])
+                           square2 (add-pair square [-2 0])
+                           check (fn [new-square] (and (square-valid? board new-square)
+                                                    (square-empty? board new-square)))
+                           ok1 (check square1)
+                           ok2 (and ok1 (= (square 0) 6) (check square2))]
+                       (remove nil? [(when ok1 square1) (when ok2 square2)])))
            (= kind KING)
              (clojure.set/difference (set capture-moves)
-                                     (poses-in-check board (other-color color)))
+                                     (squares-in-check board (other-color color)))
            :else
              capture-moves)))
 
@@ -199,9 +199,9 @@
         "       P"
         "    R   "]))
 
-(defn show-moves [pos]
+(defn show-moves [square]
 (print-board (board-with-moves test1-board
-                               (valid-moves test1-board pos))))
+                               (valid-moves test1-board square))))
 (comment
   (print-board
     (board-with-moves initial-board
@@ -239,7 +239,7 @@
                              "xxxxRxxx"])
         checked-board  (board-with-moves
                          test1-board
-                         (poses-in-check test1-board WHITE))]
+                         (squares-in-check test1-board WHITE))]
     (print-board checked-board)
     (println (= exp-board checked-board)) )
   )
