@@ -53,15 +53,15 @@
 
 (defn print-board [board] (println (to-picture board)))
 
-(defn with-piece [piece board square]
-  (assoc-in board square piece))
+(defn with-val [val board square]
+  (assoc-in board square val))
 
-(defn piece-at [board square]
+(defn val-at [board square]
   (get-in board square))
 
 ;;; refactor: rename mark-squares
 (defn board-with-moves [board moves]
-  (reduce (partial with-piece \x) board moves))
+  (reduce (partial with-val \x) board moves))
 
 (def initial-board
      (to-board
@@ -80,18 +80,18 @@
 ;;;    square-empty? etc out of those.
 
 (defn square-valid? [board square]
-  (piece-at board square))
+  (val-at board square))
 
 (defn square-empty? [board square]
-  (= (piece-at board square) EMPTY))
+  (= (val-at board square) EMPTY))
 
 (defn square-piece? [board square]
   (#{ROOK KNIGHT BISHOP QUEEN KING PAWN}
-   (kind-of (piece-at board square))))
+   (kind-of (val-at board square))))
 
 (defn square-enemy? [board color square]
   (and (square-piece? board square)
-       (not= color (color-of (piece-at board square)))))
+       (not= color (color-of (val-at board square)))))
 
 (defn square-own? [board color square]
   (and (square-piece? board square)
@@ -104,11 +104,11 @@
        [rank file]))
 
 (defn color-squares [board color]
-  (filter #(= color (color-of (piece-at board %))) (piece-squares board)))
+  (filter #(= color (color-of (val-at board %))) (piece-squares board)))
 
 
-;;; maybe return moves up to (but not including) next piece or up to dist.
-;;;       also return squareition of next space if it contains a piece, and
+;;; maybe return moves up to (but not including) next val or up to dist.
+;;;       also return squareition of next space if it contains a val, and
 ;;;       let caller decide whether to include that in move set.
 ;;; or maybe just rename to linear-moves
 (defn moves-in-dirs [board square color dirs]
@@ -116,14 +116,14 @@
          (for [dir dirs]
               (loop [cur-square (add-pair square dir)
                      moves []]
-                    (let [piece-there (piece-at board cur-square)
+                    (let [val-there (val-at board cur-square)
                           new-moves (conj moves cur-square)]
-                      (cond (not piece-there)
+                      (cond (not val-there)
                               moves
-                            (not= piece-there EMPTY)
-                            (if (= color (color-of piece-there))
-                              moves
-                              new-moves)
+                            (not= val-there EMPTY)
+                              (if (= color (color-of val-there))
+                                moves
+                                new-moves)
                             :else
                               (recur (add-pair cur-square dir) new-moves)))))))
 
@@ -132,16 +132,16 @@
                 (not (square-own? board color %)))
           (map #(add-pair square %) offsets)))
 
-; squareitions that color could capture, were there a piece of the other
+; squareitions that color could capture, were there a val of the other
 ; color there.
 (defn squares-in-check [board color]
   (set (apply concat (map #(valid-captures board %) (color-squares board color)))))
 
 ;; assumes board is oriented such that current player's home rank is 7
 (defn valid-captures [board square]
-  (let [piece (piece-at board square)
-        color (color-of piece)
-        kind (kind-of piece)]
+  (let [val (val-at board square)
+        color (color-of val)
+        kind (kind-of val)]
     (cond (= kind ROOK)
             (moves-in-dirs board square color STRAIGHT-DIRS)
           (= kind BISHOP)
@@ -164,9 +164,9 @@
              (moves-direct board square color ALL-DIRS))))
 
 (defn valid-moves [board square]
-   (let [piece (piece-at board square)
-         color (color-of piece)
-         kind (kind-of piece)
+   (let [val (val-at board square)
+         color (color-of val)
+         kind (kind-of val)
          capture-moves (valid-captures board square)]
      (cond (= kind PAWN)
              (concat capture-moves
