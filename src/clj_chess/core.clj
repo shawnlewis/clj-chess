@@ -86,6 +86,8 @@
 (defn board-with-moves [board moves]
   (reduce (partial with-piece \x) board moves))
 
+(defn checked-poses [board color])
+
 (defn moves-in-dirs [board pos color dirs dist]
   (apply concat
          (for [dir dirs]
@@ -101,6 +103,11 @@
                               new-moves)
                             :else 
                             (recur (add-pair cur-pos dir) new-moves)))))))
+
+(defn moves-direct [board pos color offsets]
+  (filter #(and (pos-valid? board %)
+                (not (pos-own? board color %)))
+          (map #(add-pair pos %) offsets)))
 
 ;; assumes board is oriented such that current player's home rank is 7
 (defn valid-moves [board pos]
@@ -130,34 +137,14 @@
                         poses))
               )
            (= kind KNIGHT)
-             (filter #(and (pos-valid? board %)
-                           (not (pos-own? board color %)))
-               (map #(add-pair pos %)
-                    [[1 2] [2 1]
-                     [-1 2] [2 -1]
-                     [-1 -2] [-2 -1]
-                     [1 -2] [-2 1]]))
-            )))
-
-
-;; pawn
-;; forward 1 if empty and valid
-;; forward 2 if rank forward 1 and empty and valid
-;; diagonal 1 if opposite color or en passant 
-
-;; def pawn_moves():
-;;   move = [-1 0]
-;;   if is_valid(move) and is_empty(move)
-;;     moves.append(move)
-;;   move = [-2 0]
-;;   if moves and is_valid(move) and is_empty(move)
-;;     moves.append(move)
-;;   move = [-1 -1]
-;;   if is_valid(move) and is_theirs(move)
-;;     moves.append(move)
-;;   move = [-1 1]
-;;   if is_valid(move) and is_theirs(move)
-;;     moves.append(move)
+             (moves-direct board pos color  
+                           [[1 2] [2 1]
+                            [-1 2] [2 -1]
+                            [-1 -2] [-2 -1]
+                            [1 -2] [-2 1]]) 
+           (= kind KING)
+             (let [in-check (checked-poses board color)])
+             (moves-direct board pos color ALL-DIRS))))
 
 (def test1-board
      (to-board
@@ -185,9 +172,17 @@
   (show-moves [0 0])
   (show-moves [2 4])
   (show-moves [2 4])
+
+  ; pawns
   (show-moves [3 5])
   (show-moves [6 7])
   (show-moves [3 1])
+
+  ; knights
   (show-moves [4 2])
   (show-moves [4 4])
+
+  ; kings
+  (show-moves [0 3])
+  (show-moves [5 1])
   )
