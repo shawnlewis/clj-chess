@@ -17,6 +17,13 @@
 
 ;;; chess
 
+;; Terms:
+;;   board: program's representation of a chess board. A vector
+;;     of vectors of chars.
+;;   square: A location on the board, denoted by [rank file].
+;;   val(value): The contents of a square.
+;;   piece: A chess piece.
+
 (def WHITE)
 (def BLACK)
 (def ROOK \r)
@@ -69,16 +76,8 @@
 
 
 ;;; refactor:
-;;;    use nil for INVALID
-;;;    terms
-;;;      "board" (program representation of chess board)
-;;;      "square" (square)
-;;;      "value" (what's in a square)
-;;;      "piece" non-empty value
-;;:
 ;;;    could do these as (val-empty? [val]) fns and then build
 ;;;    square-empty? etc out of those.
-;;;
 
 (defn square-valid? [board square]
   (piece-at board square))
