@@ -53,6 +53,10 @@
 (defn piece-at [board pos]
   (get-in board pos INVALID))
 
+;;; refactor: rename mark-poses
+(defn board-with-moves [board moves]
+  (reduce (partial with-piece \x) board moves))
+
 (def initial-board
      (to-board
        ["rnbqkbnr"
@@ -64,6 +68,17 @@
         "PPPPPPPP"
         "RNBQKBNR"]))
 
+
+;;; refactor:
+;;;    use nil for INVALID
+;;;    terms
+;;;      "board" (program representation of chess board)
+;;;      "pos" (square)
+;;;      "value" (what's in a square)
+;;;      "piece" non-empty value
+;;:
+;;;    could do these as (val-empty? [val]) fns and then build
+;;;    pos-empty? etc out of those.
 
 (defn pos-empty? [board pos]
   (= (piece-at board pos) EMPTY))
@@ -83,12 +98,6 @@
   (and (pos-piece? board pos)
        (not (pos-enemy? board color pos))))
 
-; returns color in mate, or nil
-(defn is-mate [board] nil)
-
-(defn board-with-moves [board moves]
-  (reduce (partial with-piece \x) board moves))
-
 (defn piece-poses [board]
   (for [rank (range 8)
         file (range 8)
@@ -98,11 +107,6 @@
 (defn color-poses [board color]
   (filter #(= color (color-of (piece-at board %))) (piece-poses board)))
 
-; positions that color could capture, were there a piece of the other
-; color there.
-(defn poses-in-check [board color]
-  (set (apply concat (map #(valid-captures board %) (color-poses board color)))))
-
 (defn moves-in-dirs [board pos color dirs dist]
   (apply concat
          (for [dir dirs]
@@ -111,18 +115,23 @@
                     (let [piece-there (piece-at board cur-pos)
                           new-moves (conj moves cur-pos)]
                       (cond (= piece-there INVALID)
-                            moves
+                              moves
                             (not= piece-there EMPTY)
                             (if (= color (color-of piece-there))
                               moves
                               new-moves)
                             :else
-                            (recur (add-pair cur-pos dir) new-moves)))))))
+                              (recur (add-pair cur-pos dir) new-moves)))))))
 
 (defn moves-direct [board pos color offsets]
   (filter #(and (pos-valid? board %)
                 (not (pos-own? board color %)))
           (map #(add-pair pos %) offsets)))
+
+; positions that color could capture, were there a piece of the other
+; color there.
+(defn poses-in-check [board color]
+  (set (apply concat (map #(valid-captures board %) (color-poses board color)))))
 
 ;; assumes board is oriented such that current player's home rank is 7
 (defn valid-captures [board pos]
