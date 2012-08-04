@@ -107,7 +107,12 @@
 (defn color-poses [board color]
   (filter #(= color (color-of (piece-at board %))) (piece-poses board)))
 
-(defn moves-in-dirs [board pos color dirs dist]
+
+;;; maybe return moves up to (but not including) next piece or up to dist.
+;;;       also return position of next space if it contains a piece, and
+;;;       let caller decide whether to include that in move set.
+;;; or maybe just rename to linear-moves
+(defn moves-in-dirs [board pos color dirs]
   (apply concat
          (for [dir dirs]
               (loop [cur-pos (add-pair pos dir)
@@ -139,11 +144,11 @@
         color (color-of piece)
         kind (kind-of piece)]
     (cond (= kind ROOK)
-            (moves-in-dirs board pos color STRAIGHT-DIRS 8)
+            (moves-in-dirs board pos color STRAIGHT-DIRS)
           (= kind BISHOP)
-            (moves-in-dirs board pos color DIAGONAL-DIRS 8)
+            (moves-in-dirs board pos color DIAGONAL-DIRS)
           (= kind QUEEN)
-            (moves-in-dirs board pos color ALL-DIRS 8)
+            (moves-in-dirs board pos color ALL-DIRS)
           (= kind PAWN)
               ; diagonal moves
               (let [poses (map #(add-pair pos %) [[-1 -1] [-1 1]])]
@@ -175,7 +180,8 @@
                            ok2 (and ok1 (= (pos 0) 6) (check pos2))]
                        (remove nil? [(when ok1 pos1) (when ok2 pos2)])))
            (= kind KING)
-             (clojure.set/difference (set capture-moves) (poses-in-check board (other-color color)))
+             (clojure.set/difference (set capture-moves)
+                                     (poses-in-check board (other-color color)))
            :else
              capture-moves)))
 
