@@ -62,9 +62,23 @@
         "RNBQKBNR"]))
 
 
-(defn pos-empty? [board pos] (= (piece-at board pos) EMPTY))
-(defn pos-valid? [board pos] (not= (piece-at board pos) INVALID))
-(defn pos-enemy? [board color pos] (not= color (color-of (piece-at board pos))))
+(defn pos-empty? [board pos]
+  (= (piece-at board pos) EMPTY))
+
+(defn pos-valid? [board pos]
+  (not= (piece-at board pos) INVALID))
+
+(defn pos-piece? [board pos]
+  (#{ROOK KNIGHT BISHOP QUEEN KING PAWN}
+   (kind-of (piece-at board pos))))
+
+(defn pos-enemy? [board color pos]
+  (and (pos-piece? board pos)
+       (not= color (color-of (piece-at board pos)))))
+
+(defn pos-own? [board color pos]
+  (and (pos-piece? board pos)
+       (not (pos-enemy? board color pos))))
 
 ; returns color in mate, or nil
 (defn is-mate [board] nil)
@@ -114,7 +128,16 @@
                 (filter #(and (pos-valid? board %)
                               (pos-enemy? board color %))
                         poses))
-              ))))
+              )
+           (= kind KNIGHT)
+             (filter #(and (pos-valid? board %)
+                           (not (pos-own? board color %)))
+               (map #(add-pair pos %)
+                    [[1 2] [2 1]
+                     [-1 2] [2 -1]
+                     [-1 -2] [-2 -1]
+                     [1 -2] [-2 1]]))
+            )))
 
 
 ;; pawn
@@ -142,7 +165,7 @@
         "        "
         " ppbq   "
         " Pp  P  "
-        "  N     "
+        "  N n   "
         " K    p "
         "       P"
         "    R   "]))
@@ -165,4 +188,6 @@
   (show-moves [3 5])
   (show-moves [6 7])
   (show-moves [3 1])
+  (show-moves [4 2])
+  (show-moves [4 4])
   )
