@@ -75,28 +75,6 @@
         "RNBQKBNR"]))
 
 
-;;; refactor:
-;;;    could do these as (val-empty? [val]) fns and then build
-;;;    square-empty? etc out of those.
-
-(defn square-valid? [board square]
-  (val-at board square))
-
-(defn square-empty? [board square]
-  (= (val-at board square) EMPTY))
-
-(defn square-piece? [board square]
-  (#{ROOK KNIGHT BISHOP QUEEN KING PAWN}
-   (kind-of (val-at board square))))
-
-(defn square-enemy? [board color square]
-  (and (square-piece? board square)
-       (not= color (color-of (val-at board square)))))
-
-(defn square-own? [board color square]
-  (and (square-piece? board square)
-       (not (square-enemy? board color square))))
-
 (defn val-empty? [val]
   (= val EMPTY))
 
@@ -166,8 +144,8 @@
           (= kind PAWN)
               ; diagonal moves
               (let [squares (map #(add-pair square %) [[-1 -1] [-1 1]])]
-                (filter #(and (square-valid? board %)
-                              (square-enemy? board color %))
+                (filter #(if-let [val (val-at board %)]
+                                 (val-enemy? color val))
                         squares))
            (= kind KNIGHT)
              (moves-direct board square color
@@ -188,8 +166,9 @@
                      ; forward moves
                      (let [square1 (add-pair square [-1 0])
                            square2 (add-pair square [-2 0])
-                           check (fn [new-square] (and (square-valid? board new-square)
-                                                    (square-empty? board new-square)))
+                           check (fn [new-square]
+                                     (if-let [val (val-at new-square)]
+                                             (val-empty? val)))
                            ok1 (check square1)
                            ok2 (and ok1 (= (square 0) 6) (check square2))]
                        (remove nil? [(when ok1 square1) (when ok2 square2)])))
