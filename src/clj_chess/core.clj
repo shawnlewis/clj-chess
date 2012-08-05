@@ -97,6 +97,9 @@
   (and (square-piece? board square)
        (not (square-enemy? board color square))))
 
+(defn val-empty? [val]
+  (= val EMPTY))
+
 (defn val-piece? [val]
   (#{ROOK KNIGHT BISHOP QUEEN KING PAWN}
    (kind-of val)))
@@ -132,8 +135,8 @@
                           new-moves (conj moves cur-square)]
                       (cond (not val-there)
                               moves
-                            (not= val-there EMPTY)
-                              (if (= color (color-of val-there))
+                            (not (val-empty? val-there))
+                              (if (val-own? color val-there)
                                 moves
                                 new-moves)
                             :else
