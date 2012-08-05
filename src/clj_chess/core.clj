@@ -143,8 +143,8 @@
                               (recur (add-pair cur-square dir) new-moves)))))))
 
 (defn moves-direct [board square color offsets]
-  (filter #(and (square-valid? board %)
-                (not (square-own? board color %)))
+  (filter #(if-let [val (val-at board %)]
+                   (not (val-own? color val)))
           (map #(add-pair square %) offsets)))
 
 ; squares that color could capture, were there a val of the other
