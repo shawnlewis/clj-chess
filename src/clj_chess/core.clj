@@ -188,6 +188,7 @@
                            ok2 (and ok1 (= (square 0) 6) (check square2))]
                        (remove nil? [(when ok1 square1) (when ok2 square2)])))
            (= kind KING)
+             ;; BUG: This lets the king move into check if he captures a piece.
              (clojure.set/difference (set capture-moves)
                                      (squares-in-check board (other-color color)))
            :else
