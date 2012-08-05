@@ -1,7 +1,13 @@
 (ns clj-chess.core
-    (:use clojure.repl)
+    (:use clojure.repl
+          [swank.core :only (with-read-line-support)])
     (:require [clojure.string :as string]
               [clojure.set]))
+
+; fix for read-line from repl
+(def orig-read-line read-line)
+(comment
+  (defn read-line [] (with-read-line-support (orig-read-line))))
 
 ;;; utilties
 
@@ -14,6 +20,17 @@
 (defn zip [& args]
   (apply map vector args))
 
+; reads an s-expr from *in*, nil if invalid
+(defn read-expr [prompt]
+  (do
+    (print prompt)
+
+    ; This causes an infinite loop in slimv repl!
+    (flush)
+
+    (let [expr (try (load-string (read-line))
+                    (catch java.lang.RuntimeException _ nil))]
+      expr)))
 
 ;;; chess
 
@@ -24,8 +41,8 @@
 ;;   val(value): The contents of a square.
 ;;   piece: A chess piece.
 
-(def WHITE)
-(def BLACK)
+(def WHITE :white)
+(def BLACK :black)
 (def ROOK \r)
 (def KNIGHT \n)
 (def BISHOP \b)
@@ -91,7 +108,7 @@
 (defn filter-squares [pred board]
   (for [rank (range 8)
         file (range 8)
-        :when (pred (piece-at board [rank file]))]
+        :when (pred (val-at board [rank file]))]
        [rank file]))
 
 (defn color-squares [board color]
@@ -117,11 +134,6 @@
   (filter #(if-let [val (val-at board %)]
                    (not (val-own? color val)))
           (map #(add-pair square %) offsets)))
-
-; squares that color could capture, were there a val of the other
-; color there.
-(defn squares-in-check [board color]
-  (set (apply concat (map #(valid-captures board %) (color-squares board color)))))
 
 ;; assumes board is oriented such that current player's home rank is 7
 (defn valid-captures [board square]
@@ -149,6 +161,11 @@
            (= kind KING)
              (direct-moves board square color ALL-DIRS))))
 
+; squares that color could capture, were there a val of the other
+; color there.
+(defn squares-in-check [board color]
+  (set (apply concat (map #(valid-captures board %) (color-squares board color)))))
+
 (defn valid-moves [board square]
    (let [val (val-at board square)
          color (color-of val)
@@ -160,7 +177,7 @@
                      (let [square1 (add-pair square [-1 0])
                            square2 (add-pair square [-2 0])
                            check (fn [new-square]
-                                     (if-let [val (val-at new-square)]
+                                     (if-let [val (val-at board new-square)]
                                              (val-empty? val)))
                            ok1 (check square1)
                            ok2 (and ok1 (= (square 0) 6) (check square2))]
@@ -171,6 +188,52 @@
            :else
              capture-moves)))
 
+;;; Play
+
+(defn is-mate? [board] false)
+
+(defn valid-move? [board color move]
+  (let [[from-square to-square] move
+        is-own (val-own? color (val-at board from-square))
+        valid-moves (set (valid-moves board from-square))
+        is-valid (valid-moves to-square)]
+    (and is-own is-valid)))
+
+(defn read-move [color]
+  (let [move (read-expr (str (name color) "'s move:  "))]
+    (try (let [[[start-rank start-file] [end-rank-end-file]] move] move)
+         (catch java.lang.Throwable _ nil))))  ; ugly catch-all!
+
+(defn read-valid-move [board color]
+  (loop []
+    (let [move (read-move color)]
+      (if (and move (valid-move? board color move))
+        move
+        (do
+          (println "Invalid move")
+          (recur))))))
+
+(defn update-move [board move]
+  (let [[from-square to-square] move
+        moved-piece (val-at board from-square)]
+    (with-val EMPTY (with-val moved-piece board to-square) from-square)))
+
+(defn flip [board] (vec (reverse board)))
+
+(defn play []
+  (flush)
+  (loop [board initial-board
+         color WHITE]
+    (print-board board)
+    (if-let [winner (is-mate? board)]
+      (println (str winner " wins"))
+      (let [board board
+            move (read-valid-move board color)]
+        (recur (flip (update-move board move)) (other-color color))))))
+
+
+(defn -main []
+  (play))
 
 ;;; Tests
 
