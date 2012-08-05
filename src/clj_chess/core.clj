@@ -114,6 +114,11 @@
 (defn color-squares [board color]
   (filter-squares (partial val-own? color) board))
 
+(defn piece-squares [board kind color]
+  (filter-squares #(and (= kind (kind-of %))
+                        (= color (color-of %)))
+                  board))
+
 (defn linear-moves [board square color dirs]
   (apply concat
          (for [dir dirs]
@@ -190,7 +195,17 @@
 
 ;;; Play
 
-(defn is-mate? [board] false)
+(defn is-mated? [board color]
+  (let [checked-squares (squares-in-check board (other-color color))
+        king-square ((vec (piece-squares board KING color)) 0)
+        king-moves (direct-moves board king-square color ALL-DIRS)]
+    (clojure.set/subset? (set (concat [king-square] king-moves))
+                         checked-squares)))
+
+(defn is-mate? [board]
+  (get
+    (vec (filter (partial is-mated? board) [WHITE BLACK]))
+    0))
 
 (defn valid-move? [board color move]
   (let [[from-square to-square] move
@@ -247,6 +262,30 @@
         " K    p "
         "       P"
         "    R   "]))
+
+; mate
+(def test2-board
+     (to-board
+       ["R  k    "
+        "      R "
+        "   N    "
+        "        "
+        "        "
+        "        "
+        "        "
+        "   K    "]))
+
+; also mate
+(def test3-board
+     (to-board
+       ["   k    "
+        "   Q    "
+        "        "
+        "    N   "
+        "        "
+        "        "
+        "        "
+        "   K    "]))
 
 (defn show-moves [square]
 (print-board (mark-squares test1-board
