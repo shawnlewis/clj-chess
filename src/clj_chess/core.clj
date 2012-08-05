@@ -195,12 +195,21 @@
 
 ;;; Play
 
+(defn update-move [board move]
+  (let [[from-square to-square] move
+        moved-piece (val-at board from-square)]
+    (with-val EMPTY (with-val moved-piece board to-square) from-square)))
+
+
 (defn is-mated? [board color]
-  (let [checked-squares (squares-in-check board (other-color color))
-        king-square ((vec (piece-squares board KING color)) 0)
+  (let [king-square ((vec (piece-squares board KING color)) 0)
         king-moves (direct-moves board king-square color ALL-DIRS)]
-    (clojure.set/subset? (set (concat [king-square] king-moves))
-                         checked-squares)))
+    (every? identity
+            (map (fn [move]
+                     (let [with-move (update-move board [king-square move])
+                           checked-squares (squares-in-check with-move (other-color color))]
+                       ((set checked-squares) move)))
+                 (set (concat [king-square] king-moves))))))
 
 (defn is-mate? [board]
   (get
@@ -228,11 +237,6 @@
           (println "Invalid move")
           (recur))))))
 
-(defn update-move [board move]
-  (let [[from-square to-square] move
-        moved-piece (val-at board from-square)]
-    (with-val EMPTY (with-val moved-piece board to-square) from-square)))
-
 (defn flip [board] (vec (reverse board)))
 
 (defn play []
@@ -240,12 +244,11 @@
   (loop [board initial-board
          color WHITE]
     (print-board board)
-    (if-let [winner (is-mate? board)]
-      (println (str winner " wins"))
+    (if-let [loser (is-mate? board)]
+      (println (str (other-color loser) " wins"))
       (let [board board
             move (read-valid-move board color)]
         (recur (flip (update-move board move)) (other-color color))))))
-
 
 (defn -main []
   (play))
