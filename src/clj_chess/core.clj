@@ -97,14 +97,26 @@
   (and (square-piece? board square)
        (not (square-enemy? board color square))))
 
-(defn piece-squares [board]
+(defn val-piece? [val]
+  (#{ROOK KNIGHT BISHOP QUEEN KING PAWN}
+   (kind-of val)))
+
+(defn val-own? [color val]
+  (and (val-piece? val)
+       (= color (color-of val))))
+
+(defn val-enemy? [color val]
+  (and (val-piece? val)
+       (not= color (color-of val))))
+
+(defn filter-squares [pred board]
   (for [rank (range 8)
         file (range 8)
-        :when (square-piece? board [rank file])]
+        :when (pred (piece-at board [rank file]))]
        [rank file]))
 
 (defn color-squares [board color]
-  (filter #(= color (color-of (val-at board %))) (piece-squares board)))
+  (filter-squares (partial val-own? color) board))
 
 
 ;;; maybe return moves up to (but not including) next val or up to dist.
