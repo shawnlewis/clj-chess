@@ -59,9 +59,8 @@
 (defn val-at [board square]
   (get-in board square))
 
-;;; refactor: rename mark-squares
-(defn board-with-moves [board moves]
-  (reduce (partial with-val \x) board moves))
+(defn mark-squares [board squares]
+  (reduce (partial with-val \x) board squares))
 
 (def initial-board
      (to-board
@@ -73,7 +72,6 @@
         "        "
         "PPPPPPPP"
         "RNBQKBNR"]))
-
 
 (defn val-empty? [val]
   (= val EMPTY))
@@ -99,12 +97,7 @@
 (defn color-squares [board color]
   (filter-squares (partial val-own? color) board))
 
-
-;;; maybe return moves up to (but not including) next val or up to dist.
-;;;       also return squareition of next space if it contains a val, and
-;;;       let caller decide whether to include that in move set.
-;;; or maybe just rename to linear-moves
-(defn moves-in-dirs [board square color dirs]
+(defn linear-moves [board square color dirs]
   (apply concat
          (for [dir dirs]
               (loop [cur-square (add-pair square dir)
@@ -120,7 +113,7 @@
                             :else
                               (recur (add-pair cur-square dir) new-moves)))))))
 
-(defn moves-direct [board square color offsets]
+(defn direct-moves [board square color offsets]
   (filter #(if-let [val (val-at board %)]
                    (not (val-own? color val)))
           (map #(add-pair square %) offsets)))
@@ -136,11 +129,11 @@
         color (color-of val)
         kind (kind-of val)]
     (cond (= kind ROOK)
-            (moves-in-dirs board square color STRAIGHT-DIRS)
+            (linear-moves board square color STRAIGHT-DIRS)
           (= kind BISHOP)
-            (moves-in-dirs board square color DIAGONAL-DIRS)
+            (linear-moves board square color DIAGONAL-DIRS)
           (= kind QUEEN)
-            (moves-in-dirs board square color ALL-DIRS)
+            (linear-moves board square color ALL-DIRS)
           (= kind PAWN)
               ; diagonal moves
               (let [squares (map #(add-pair square %) [[-1 -1] [-1 1]])]
@@ -148,13 +141,13 @@
                                  (val-enemy? color val))
                         squares))
            (= kind KNIGHT)
-             (moves-direct board square color
+             (direct-moves board square color
                            [[1 2] [2 1]
                             [-1 2] [2 -1]
                             [-1 -2] [-2 -1]
                             [1 -2] [-2 1]])
            (= kind KING)
-             (moves-direct board square color ALL-DIRS))))
+             (direct-moves board square color ALL-DIRS))))
 
 (defn valid-moves [board square]
    (let [val (val-at board square)
@@ -193,12 +186,12 @@
         "    R   "]))
 
 (defn show-moves [square]
-(print-board (board-with-moves test1-board
+(print-board (mark-squares test1-board
                                (valid-moves test1-board square))))
 (comment
   (print-board
-    (board-with-moves initial-board
-                      (moves-in-dirs initial-board
+    (mark-squares initial-board
+                      (linear-moves initial-board
                                      [3 2]
                                      BLACK
                                      [[0 1] [-1 0]]
@@ -230,7 +223,7 @@
                              "xKx x x "
                              "xxxxx  P"
                              "xxxxRxxx"])
-        checked-board  (board-with-moves
+        checked-board  (mark-squares
                          test1-board
                          (squares-in-check test1-board WHITE))]
     (print-board checked-board)
