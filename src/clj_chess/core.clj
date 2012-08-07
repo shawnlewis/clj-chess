@@ -174,7 +174,7 @@
 (defn squares-in-check [board color]
   (set (apply concat (map #(valid-attacks board %) (color-squares board color)))))
 
-(defn valid-moves [board square]
+(defn piece-moves [board square]
    (let [val (val-at board square)
          color (color-of val)
          kind (kind-of val)
@@ -206,8 +206,10 @@
 (defn all-moves [board color]
   (apply concat (map (fn [from]
                          (map (fn [to] [from to])
-                              (valid-moves board from))) 
+                              (piece-moves board from))) 
                      (color-squares board color))))
+
+; valid if ends not in check
 
 ;; a few fixes:
 ;; - mate when no move removes check
@@ -234,23 +236,23 @@
 (defn checked? [board color]
   (attacked? board (other-color color) (king-square board color)))
 
+(defn legal-moves [board color]
+  (letfn [(legal [move] (not (checked? (update-move board move) color)))]
+    (filter legal (all-moves board color))))
+
 ; true if color is mated
 (defn mated? [board color]
-  (let [boards (conj (map (partial update-move board)
-                          (all-moves board color))
-                     board)]
-    (every? #(checked? % color) boards)))
+  (and (checked? board color) (= 0 (count (legal-moves board color)))))
 
 (defn is-mate? [board]
   (get
-    (vec (filter (partial is-mated? board) [WHITE BLACK]))
+    (vec (filter (partial mated? board) [WHITE BLACK]))
     0))
 
-(defn valid-move? [board color move]
+(defn valid-move? [board color move legal-moves]
   (let [[from-square to-square] move
         is-own (val-own? color (val-at board from-square))
-        valid-moves (set (valid-moves board from-square))
-        is-valid (valid-moves to-square)]
+        is-valid (legal-moves move)]
     (and is-own is-valid)))
 
 (defn read-move [color]
@@ -259,13 +261,14 @@
          (catch java.lang.Throwable _ nil))))  ; ugly catch-all!
 
 (defn read-valid-move [board color]
-  (loop []
-    (let [move (read-move color)]
-      (if (and move (valid-move? board color move))
-        move
-        (do
-          (println "Invalid move")
-          (recur))))))
+  (let [legals (set (legal-moves board color))]
+    (loop []
+      (let [move (read-move color)]
+        (if (and move (valid-move? board color move legals))
+          move
+          (do
+            (println "Invalid move")
+            (recur)))))))
 
 (defn flip [board] (vec (reverse board)))
 
@@ -335,7 +338,7 @@
 ; not mate
 (def test5-board
      (to-board
-       ["  nkn   "
+       ["  rkr   "
         "  p p   "
         "        "
         "        "
@@ -346,7 +349,7 @@
 
 (defn show-moves [square]
 (print-board (mark-squares test1-board
-                               (valid-moves test1-board square))))
+                               (piece-moves test1-board square))))
 (comment
   (print-board
     (mark-squares initial-board
