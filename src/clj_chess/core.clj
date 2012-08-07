@@ -119,6 +119,9 @@
                         (= color (color-of %)))
                   board))
 
+(defn king-square [board color]
+  (nth (piece-squares board KING color) 0))
+
 (defn linear-moves [board square color dirs]
   (apply concat
          (for [dir dirs]
@@ -141,7 +144,7 @@
           (map #(add-pair square %) offsets)))
 
 ;; assumes board is oriented such that current player's home rank is 7
-(defn valid-captures [board square]
+(defn valid-attacks [board square]
   (let [val (val-at board square)
         color (color-of val)
         kind (kind-of val)]
@@ -169,13 +172,13 @@
 ; squares that color could capture, were there a val of the other
 ; color there.
 (defn squares-in-check [board color]
-  (set (apply concat (map #(valid-captures board %) (color-squares board color)))))
+  (set (apply concat (map #(valid-attacks board %) (color-squares board color)))))
 
 (defn valid-moves [board square]
    (let [val (val-at board square)
          color (color-of val)
          kind (kind-of val)
-         capture-moves (valid-captures board square)]
+         capture-moves (valid-attacks board square)]
      (cond (= kind PAWN)
              (concat capture-moves
                      ; forward moves
@@ -194,6 +197,28 @@
            :else
              capture-moves)))
 
+; all squares under attack by color
+(defn all-attacked [board color]
+  (apply concat (map (partial valid-attacks board)
+                     (color-squares board color)))) 
+
+; all moves for color. a move is [from-square to-square]
+(defn all-moves [board color]
+  (apply concat (map (fn [from]
+                         (map (fn [to] [from to])
+                              (valid-moves board from))) 
+                     (color-squares board color))))
+
+;; a few fixes:
+;; - mate when no move removes check
+;; - only check-removing moves are valid when in check
+;; - no move my incur check
+;;
+;; solution
+;;   is-mate?: (is-check? king-square) and (is-check? all-moves)
+;;     is-check?: (is-attacked? (find-king board color))
+;;     is-attacked [square color]: square is in set attacked by color
+
 ;;; Play
 
 (defn update-move [board move]
@@ -201,16 +226,20 @@
         moved-piece (val-at board from-square)]
     (with-val EMPTY (with-val moved-piece board to-square) from-square)))
 
+; true if square is attacked by color
+(defn attacked? [board color square]
+  (some (set [square]) (all-attacked board color)))
 
-(defn is-mated? [board color]
-  (let [king-square ((vec (piece-squares board KING color)) 0)
-        king-moves (direct-moves board king-square color ALL-DIRS)]
-    (every? identity
-            (map (fn [move]
-                     (let [with-move (update-move board [king-square move])
-                           checked-squares (squares-in-check with-move (other-color color))]
-                       ((set checked-squares) move)))
-                 (set (concat [king-square] king-moves))))))
+; true if color's king is in check
+(defn checked? [board color]
+  (attacked? board (other-color color) (king-square board color)))
+
+; true if color is mated
+(defn mated? [board color]
+  (let [boards (conj (map (partial update-move board)
+                          (all-moves board color))
+                     board)]
+    (every? #(checked? % color) boards)))
 
 (defn is-mate? [board]
   (get
@@ -287,6 +316,30 @@
         "        "
         "    N   "
         "        "
+        "        "
+        "        "
+        "   K    "]))
+
+; not mate
+(def test4-board
+     (to-board
+       ["  nkn   "
+        "  p p   "
+        "        "
+        "    r   "
+        "   R    "
+        "        "
+        "        "
+        "   K    "]))
+
+; not mate
+(def test5-board
+     (to-board
+       ["  nkn   "
+        "  p p   "
+        "        "
+        "        "
+        "   Rr   "
         "        "
         "        "
         "   K    "]))
