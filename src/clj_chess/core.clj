@@ -1,6 +1,6 @@
 (ns clj-chess.core
-    (:use clojure.repl
-          [swank.core :only (with-read-line-support)])
+    (:use clojure.repl)
+    ;      [swank.core :only (with-read-line-support)])
     (:require [clojure.string :as string]
               [clojure.set]))
 
